@@ -3,14 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Educational Asset Portal</title>
+    <title>Dynamic Educational Asset Portal</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Use Inter font family - All custom CSS is here -->
+    <!-- Use Inter font family and set background -->
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #343b48; /* Light gray background */
+            background-color: #f8fafc; /* Light gray background */
+        }
+        /* Style for the loading/error message box */
+        #asset-list .status-message {
+            background-color: #ffeaea;
+            border: 1px solid #fca5a5;
+            color: #b91c1c;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
         }
     </style>
 </head>
@@ -20,7 +29,7 @@
         <!-- Header Section -->
         <header class="text-center py-10 bg-white shadow-lg rounded-xl mb-12">
             <h1 class="text-4xl font-extrabold text-blue-800 tracking-tight sm:text-5xl">
-                The Last Minute Revision
+                The Learning Hub
             </h1>
             <p class="mt-3 text-xl text-gray-500 max-w-2xl mx-auto">
                 Your centralized resource for educational materials and downloadable assets.
@@ -30,35 +39,25 @@
         <!-- Main Content Section (Single Column, Centered) -->
         <main class="max-w-3xl mx-auto">
 
-            <!-- Lesson Notes Section -->
-            <div class="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition duration-300">
-                <div class="flex items-center space-x-4">
-                    <!-- Icon for Documents -->
-                    <!-- Changed icon color to blue for consistency -->
+            <!-- Lesson Notes Card -->
+            <div class="bg-white p-6 rounded-xl shadow-lg transition duration-300">
+                <div class="flex items-center space-x-4 mb-6">
                     <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m-5 8a2 2 0 01-2-2V5a2 2 0 012-2h5l7 7v10a2 2 0 01-2 2H5z"></path></svg>
                     <h2 class="text-2xl font-semibold text-gray-800">Lesson Notes</h2>
                 </div>
-                <!-- Updated description to be broader -->
-                <p class="mt-4 text-gray-600">Download all handwritten notes which were later digitalised.</p>
-                
-                <div class="mt-6 space-y-3">
-                    <!-- File Links - Updated background and text colors to blue -->
-                    <a href="assets/Accounting_Trial_Balance.pdf" download class="block p-3 bg-blue-100 text-blue-700 font-medium rounded-lg hover:bg-blue-200 transition flex justify-between items-center">
-                        <span>Accounting Trial Balance Notes</span>
-                        <span class="text-sm font-light text-blue-500">PDF, 1.2 MB</span>
-                    </a>
-                    <a href="assets/history_syllabus_Q3.pdf" download class="block p-3 bg-blue-100 text-blue-700 font-medium rounded-lg hover:bg-blue-200 transition flex justify-between items-center">
-                        <span>Q3 History Syllabus</span>
-                        <span class="text-sm font-light text-blue-500">PDF, 450 KB</span>
-                    </a>
-                    <a href="assets/science_project_rubric.pdf" download class="block p-3 bg-blue-100 text-blue-700 font-medium rounded-lg hover:bg-blue-200 transition flex justify-between items-center">
-                        <span>Science Project Rubric</span>
-                        <span class="text-sm font-light text-blue-500">PDF, 150 KB</span>
-                    </a>
-                    <a href="assets/presentation_slides.pptx" download class="block p-3 bg-blue-100 text-blue-700 font-medium rounded-lg hover:bg-blue-200 transition flex justify-between items-center">
-                        <span>Intro to Physics Slides</span>
-                        <span class="text-sm font-light text-blue-500">PPTX, 5.5 MB</span>
-                    </a>
+
+                <!-- Search Input Field -->
+                <input
+                    type="text"
+                    id="search-input"
+                    placeholder="Search files by name or type..."
+                    class="w-full p-3 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-500 transition mb-6 shadow-inner"
+                    onkeyup="filterAssets()"
+                >
+
+                <!-- Dynamic Asset List Container -->
+                <div id="asset-list" class="space-y-3">
+                    <div class="p-4 text-center text-gray-500 italic">Fetching asset list...</div>
                 </div>
             </div>
 
@@ -66,9 +65,117 @@
 
         <!-- Footer -->
         <footer class="mt-16 text-center text-gray-400">
-            <p>&copy; 2025 The Last Minute Revision | All Rights Reserved. Maintained by asmit</p>
+            <p>&copy; 2025 The Learning Hub | All Rights Reserved.</p>
         </footer>
     </div>
+
+    <script>
+        // Global variable to store the fetched asset list
+        let ASSET_DATA = [];
+
+        // --- 1. UTILITY FUNCTION ---
+        /**
+         * Generates the HTML string for a single asset link.
+         */
+        function createAssetLinkHTML(asset) {
+            // Note: Description and Size are placeholders returned by the function 
+            // since the function can only read the file names.
+            return `
+                <a href="assets/${asset.filename}" download 
+                   title="${asset.description}"
+                   class="asset-item block p-4 bg-blue-100 text-blue-800 font-medium rounded-lg 
+                          hover:bg-blue-200 transition duration-150 ease-in-out 
+                          flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                    <div class="flex flex-col">
+                        <span class="text-lg font-semibold">${asset.name}</span>
+                        <span class="text-sm font-normal text-blue-600 truncate">${asset.description}</span>
+                    </div>
+                    <div class="flex-shrink-0 mt-2 sm:mt-0">
+                        <span class="text-xs font-bold px-2 py-0.5 bg-blue-400 text-white rounded-full mr-2">${asset.type}</span>
+                        <span class="text-sm font-light text-blue-500">${asset.size}</span>
+                    </div>
+                </a>
+            `;
+        }
+
+        // --- 2. RENDERING AND FILTERING LOGIC ---
+        
+        /**
+         * Renders the asset list based on the global ASSET_DATA and search input.
+         */
+        window.filterAssets = function() {
+            const container = document.getElementById('asset-list');
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            let htmlContent = '';
+
+            if (ASSET_DATA.length === 0) {
+                 // Prevent filtering if data isn't loaded yet
+                 return;
+            }
+
+            const filteredAssets = ASSET_DATA.filter(asset => {
+                const searchString = `${asset.name} ${asset.type} ${asset.filename}`.toLowerCase();
+                return searchString.includes(searchTerm);
+            });
+
+            if (filteredAssets.length > 0) {
+                filteredAssets.forEach(asset => {
+                    htmlContent += createAssetLinkHTML(asset);
+                });
+            } else {
+                htmlContent = `
+                    <div class="p-4 text-center text-gray-500 bg-gray-50 rounded-lg">
+                        No assets found matching "${searchTerm}".
+                    </div>
+                `;
+            }
+
+            container.innerHTML = htmlContent;
+        }
+
+        // --- 3. DATA FETCHING LOGIC ---
+
+        // Function to fetch data from the Netlify Function with exponential backoff
+        async function fetchAssetData(retries = 3) {
+            // This endpoint is automatically generated by Netlify based on the function file path:
+            // /.netlify/functions/ + netlify-functions/getAssets.js -> /.netlify/functions/getAssets
+            const apiUrl = '/.netlify/functions/getAssets'; 
+            const container = document.getElementById('asset-list');
+            
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' },
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    ASSET_DATA = data;
+                    filterAssets(); // Initial render after data is loaded
+                    return; // Exit successfully
+
+                } catch (error) {
+                    console.error(`Attempt ${i + 1} failed:`, error);
+                    if (i < retries - 1) {
+                        const delay = Math.pow(2, i) * 1000; // 1s, 2s, 4s...
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    } else {
+                        // Final failure: show error message
+                        container.innerHTML = `<div class="status-message">
+                            Failed to load asset list. Please ensure the Netlify Function is deployed and running.
+                        </div>`;
+                    }
+                }
+            }
+        }
+
+        // Start fetching data on page load
+        document.addEventListener('DOMContentLoaded', fetchAssetData);
+    </script>
 
 </body>
 </html>
